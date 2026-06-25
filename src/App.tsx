@@ -1,5 +1,6 @@
 import './App.css';
-import { FormEvent, useMemo, useState } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { loadTodosFromStorage, saveTodosToStorage } from './todoStorage.js';
 
 type Todo = {
   id: number;
@@ -9,18 +10,12 @@ type Todo = {
 
 type Filter = 'all' | 'active' | 'completed';
 
-const sampleTodos: Todo[] = [
-  { id: 1, title: 'Draft the first task', complete: false },
-  { id: 2, title: 'Create project shell', complete: true },
-  { id: 3, title: 'Verify mobile layout', complete: false },
-];
-
 function createTodoId(todos: Todo[]): number {
   return todos.length ? Math.max(...todos.map((todo) => todo.id)) + 1 : 1;
 }
 
 function App() {
-  const [todos, setTodos] = useState<Todo[]>(sampleTodos);
+  const [todos, setTodos] = useState<Todo[]>(() => loadTodosFromStorage());
   const [newTodoTitle, setNewTodoTitle] = useState('');
   const [validationMessage, setValidationMessage] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
@@ -30,6 +25,10 @@ function App() {
     [todos],
   );
   const completedCount = todos.length - activeCount;
+
+  useEffect(() => {
+    saveTodosToStorage(todos);
+  }, [todos]);
 
   const visibleTodos = useMemo(() => {
     if (filter === 'active') {

@@ -31,8 +31,9 @@ test('Bootstrap render: root route shows app shell without runtime errors', asyn
   page.on('pageerror', (error) => errors.push(error));
 
   await page.goto('/');
+  await page.evaluate(() => localStorage.clear());
   await expect(page.getByRole('heading', { name: 'Simple Todo' })).toBeVisible();
-  await expect(page.getByText('3 total, 2 active, 1 completed')).toBeVisible();
+  await expect(page.getByText('0 total, 0 active, 0 completed')).toBeVisible();
   expect(errors).toHaveLength(0);
 });
 
