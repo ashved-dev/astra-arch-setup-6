@@ -15,9 +15,14 @@ test('todo app has interactive state handling and accessibility hooks', () => {
   assert.match(appText, /useState<Filter/);
   assert.match(appText, /newTodoTitle|handleSubmit|filter/);
   assert.match(appText, /editingTodoId/);
+  assert.match(appText, /deletingTodoId|requestDeleteTodo|confirmDeleteTodo|cancelDeleteTodo/);
   assert.match(appText, /startEditingTodo|saveEditingTodo|cancelEditingTodo/);
   assert.match(appText, /aria-label={`Mark task /);
   assert.match(appText, /aria-label={`Delete task /);
+  assert.match(appText, /aria-label={`Confirm delete /);
+  assert.match(appText, /aria-label={`Cancel delete /);
+  assert.match(appText, /todo-delete-prompt/);
+  assert.match(appText, /is-deleting/);
   assert.match(appText, /aria-label={`Edit task /);
   assert.match(appText, /aria-label={`Save task /);
   assert.match(appText, /aria-label={`Cancel editing /);
@@ -30,7 +35,11 @@ test('todo css has edit row support and responsive constraints', () => {
   assert.match(cssText, /width:\s*calc\(100%\s*-\s*24px\)/);
   assert.match(cssText, /appearance:\s*none/);
   assert.match(cssText, /todo-row\.is-editing/);
+  assert.match(cssText, /todo-row\.is-deleting/);
   assert.match(cssText, /todo-edit-input/);
   assert.match(cssText, /todo-edit-save|todo-edit-cancel/);
+  assert.match(cssText, /todo-delete-confirm/);
+  assert.match(cssText, /todo-delete-cancel/);
+  assert.match(cssText, /todo-delete-prompt/);
   assert.match(cssText, /edit-validation/);
 });

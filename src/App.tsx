@@ -22,6 +22,7 @@ function App() {
   const [editingTodoId, setEditingTodoId] = useState<number | null>(null);
   const [editingTodoTitle, setEditingTodoTitle] = useState('');
   const [editingValidationMessage, setEditingValidationMessage] = useState('');
+  const [deletingTodoId, setDeletingTodoId] = useState<number | null>(null);
 
   const activeCount = useMemo(
     () => todos.filter((todo) => !todo.complete).length,
@@ -63,25 +64,38 @@ function App() {
     );
   };
 
-  const deleteTodo = (id: number) => {
+  const clearEditingState = () => {
+    setEditingTodoId(null);
+    setEditingTodoTitle('');
+    setEditingValidationMessage('');
+  };
+
+  const requestDeleteTodo = (id: number) => {
+    clearEditingState();
+    setDeletingTodoId(id);
+  };
+
+  const cancelDeleteTodo = () => {
+    setDeletingTodoId(null);
+  };
+
+  const confirmDeleteTodo = (id: number) => {
     setTodos((prev) => prev.filter((todo) => todo.id !== id));
+    setDeletingTodoId((currentId) => (currentId === id ? null : currentId));
     if (editingTodoId === id) {
-      setEditingTodoId(null);
-      setEditingTodoTitle('');
-      setEditingValidationMessage('');
+      clearEditingState();
     }
   };
 
   const startEditingTodo = (todo: Todo) => {
+    setDeletingTodoId(null);
     setEditingTodoId(todo.id);
     setEditingTodoTitle(todo.title);
     setEditingValidationMessage('');
   };
 
   const cancelEditingTodo = () => {
-    setEditingTodoId(null);
-    setEditingTodoTitle('');
-    setEditingValidationMessage('');
+    clearEditingState();
   };
 
   const saveEditingTodo = (id: number) => {
@@ -171,7 +185,7 @@ function App() {
                   key={todo.id}
                   className={`todo-row ${todo.complete ? 'is-complete' : ''} ${
                     editingTodoId === todo.id ? 'is-editing' : ''
-                  }`}
+                  } ${deletingTodoId === todo.id ? 'is-deleting' : ''}`}
                 >
                   {editingTodoId === todo.id ? (
                     <form
@@ -228,6 +242,33 @@ function App() {
                         </p>
                       ) : null}
                     </form>
+                  ) : deletingTodoId === todo.id ? (
+                    <>
+                      <button
+                        type="button"
+                        className={`todo-check ${todo.complete ? 'is-complete' : ''}`}
+                        aria-label={`Mark task ${todo.title} as ${todo.complete ? 'active' : 'completed'}`}
+                        onClick={() => toggleTodo(todo.id)}
+                      />
+                      <span className="todo-title">{todo.title}</span>
+                      <span className="todo-delete-prompt">Delete?</span>
+                      <button
+                        type="button"
+                        className="todo-delete todo-action todo-delete-confirm"
+                        aria-label={`Confirm delete ${todo.title}`}
+                        onClick={() => confirmDeleteTodo(todo.id)}
+                      >
+                        Confirm
+                      </button>
+                      <button
+                        type="button"
+                        className="todo-delete-cancel todo-action"
+                        aria-label={`Cancel delete ${todo.title}`}
+                        onClick={cancelDeleteTodo}
+                      >
+                        Cancel
+                      </button>
+                    </>
                   ) : (
                     <>
                       <button
@@ -249,7 +290,7 @@ function App() {
                         type="button"
                         className="todo-delete todo-action"
                         aria-label={`Delete task ${todo.title}`}
-                        onClick={() => deleteTodo(todo.id)}
+                        onClick={() => requestDeleteTodo(todo.id)}
                       >
                         ×
                       </button>

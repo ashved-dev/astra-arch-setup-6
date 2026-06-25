@@ -1,5 +1,17 @@
 import { expect, test } from '@playwright/test';
 
+async function clickDeleteConfirm(page, title, action = 'confirm') {
+  await page.getByRole('button', { name: `Delete task ${title}` }).click();
+  if (action === 'cancel') {
+    await expect(page.getByRole('button', { name: `Cancel delete ${title}` })).toBeVisible();
+    await page.getByRole('button', { name: `Cancel delete ${title}` }).click();
+    return;
+  }
+
+  await expect(page.getByRole('button', { name: `Confirm delete ${title}` })).toBeVisible();
+  await page.getByRole('button', { name: `Confirm delete ${title}` }).click();
+}
+
 test.beforeEach(async ({ page }) => {
   await page.goto('/');
   await page.evaluate(() => localStorage.clear());
@@ -39,7 +51,10 @@ test('Planned interaction use case 1: full flow add, validation, toggle, filters
 
   let rowCount = await page.locator('.todo-row').count();
   while (rowCount > 0) {
-    await page.getByRole('button', { name: /^Delete task / }).first().click();
+    const firstRow = page.locator('.todo-row').first();
+    const firstRowText = await firstRow.locator('.todo-title').textContent();
+    await expect(firstRowText).toBeTruthy();
+    await clickDeleteConfirm(page, firstRowText, 'confirm');
     rowCount = await page.locator('.todo-row').count();
   }
 
@@ -116,7 +131,10 @@ test('Planned interaction use case 5: responsive flow still works at 390px', asy
   await page.getByRole('button', { name: 'Mark task Mobile flow as completed' }).click();
   await page.getByRole('button', { name: 'Completed', exact: true }).click();
   await expect(page.locator('.todo-row')).toHaveCount(1);
+  await clickDeleteConfirm(page, 'Mobile flow', 'cancel');
+  await expect(page.getByText('Mobile flow')).toBeVisible();
   await page.getByRole('button', { name: 'Delete task Mobile flow' }).click();
+  await page.getByRole('button', { name: 'Confirm delete Mobile flow' }).click();
   await expect(page.locator('.todo-row')).toHaveCount(0);
   await expect(page.getByText('No tasks yet. Add a task to get started.')).toBeVisible();
 });
