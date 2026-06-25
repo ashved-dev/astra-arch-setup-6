@@ -8,7 +8,7 @@
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
     "lint": "tsc --noEmit",
-    "test": "node --test test/**/*.test.mjs",
+    "test": "node --test test/*.test.mjs",
     "e2e": "playwright test",
     "lint:e2e": "playwright test e2e/ci-workflow.spec.js e2e/bootstrap-app.spec.js"
   },

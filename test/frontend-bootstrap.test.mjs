@@ -15,7 +15,7 @@ test('package scripts and vite frontend dependencies are configured', () => {
   assert.equal(scripts.build, 'vite build');
   assert.equal(scripts.preview, 'vite preview --host 0.0.0.0');
   assert.equal(scripts.lint, 'tsc --noEmit');
-  assert.equal(scripts.test, 'node --test test/**/*.test.mjs');
+  assert.equal(scripts.test, 'node --test test/*.test.mjs');
   assert.equal(scripts.e2e, 'playwright test');
 
   assert.ok(deps.vite, 'vite is required');
