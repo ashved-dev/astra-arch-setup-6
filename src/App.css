@@ -122,6 +122,12 @@
   align-items: start;
 }
 
+.todo-row.is-deleting {
+  grid-template-columns: auto minmax(0, 1fr) auto auto auto;
+  row-gap: 8px;
+  align-items: start;
+}
+
 .todo-row:last-child {
   border-bottom: 0;
 }
@@ -165,6 +171,33 @@
   color: #dc2626;
   font: inherit;
   cursor: pointer;
+}
+
+.todo-delete-confirm {
+  width: auto;
+  color: white;
+  background: #dc2626;
+  border-color: #dc2626;
+}
+
+.todo-delete-confirm:hover {
+  background: #b91c1c;
+}
+
+.todo-delete-cancel {
+  color: #334155;
+  border-color: #d8dee8;
+  background: white;
+}
+
+.todo-delete-cancel:hover {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+
+.todo-delete-prompt {
+  color: #1f2933;
+  white-space: nowrap;
 }
 
 .todo-action {
@@ -267,6 +300,10 @@
 
   .todo-row.is-editing {
     grid-template-columns: auto minmax(0, 1fr) auto auto;
+  }
+
+  .todo-row.is-deleting {
+    grid-template-columns: auto minmax(0, 1fr) auto auto auto;
   }
 
   .todo-empty {

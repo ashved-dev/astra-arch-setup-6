@@ -1,6 +1,12 @@
 import { expect, test } from '@playwright/test';
 import { TODO_STORAGE_KEY } from '../src/todoStorage.js';
 
+async function deleteTodo(page, title) {
+  await page.getByRole('button', { name: `Delete task ${title}` }).click();
+  await expect(page.getByRole('button', { name: `Confirm delete ${title}` })).toBeVisible();
+  await page.getByRole('button', { name: `Confirm delete ${title}` }).click();
+}
+
 test.beforeEach(async ({ page }) => {
   await page.goto('/');
   await page.evaluate(() => localStorage.clear());
@@ -40,7 +46,9 @@ test('Planned persistence use case 3: deleting all todos keeps empty state acros
   const deleteButtons = page.getByRole('button', { name: /^Delete task / });
   const deleteCount = await deleteButtons.count();
   for (let index = 0; index < deleteCount; index += 1) {
-    await deleteButtons.first().click();
+    const title = await page.locator('.todo-row .todo-title').first().textContent();
+    expect(title).toBeTruthy();
+    await deleteTodo(page, title);
   }
 
   await expect(page.getByText('No tasks yet. Add a task to get started.')).toBeVisible();
