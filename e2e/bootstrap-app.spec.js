@@ -1,7 +1,30 @@
 import { execSync } from 'node:child_process';
+import { cpSync, mkdtempSync, rmSync } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 import { test, expect } from '@playwright/test';
 
 const projectRoot = process.cwd();
+
+function withCleanBuildWorkspace(fn) {
+  const workspace = mkdtempSync(path.join(os.tmpdir(), 'astra-as6-bootstrap-'));
+  const skipPaths = new Set(['node_modules', 'dist', '.git', 'test-results', '.github/workflows']);
+
+  cpSync(projectRoot, workspace, {
+    recursive: true,
+    filter: (source) => {
+      const relative = path.relative(projectRoot, source);
+      const topLevel = relative.split(path.sep)[0];
+      return !skipPaths.has(topLevel) && !relative.startsWith('.vite');
+    },
+  });
+
+  try {
+    return fn(workspace);
+  } finally {
+    rmSync(workspace, { recursive: true, force: true });
+  }
+}
 
 test('Bootstrap render: root route shows app shell without runtime errors', async ({ page }) => {
   const errors = [];
@@ -16,13 +39,16 @@ test('Bootstrap render: root route shows app shell without runtime errors', asyn
 });
 
 test('Build path: production build completes successfully', async () => {
-  const result = execSync('npm run build', {
-    cwd: projectRoot,
-    encoding: 'utf8',
-    stdio: 'pipe',
+  const output = withCleanBuildWorkspace((workspace) => {
+    return execSync('npm ci && npm run build', {
+      cwd: workspace,
+      encoding: 'utf8',
+      stdio: 'pipe',
+      shell: true,
+    });
   });
 
-  expect(result).toContain('dist/index.html');
+  expect(output).toContain('dist/index.html');
 });
 
 test('Mobile path: app remains visible at 390px viewport width', async ({ page }) => {
