@@ -60,9 +60,23 @@ test('Desktop visual path: populated todo layout matches panel structure', async
   expect(Math.abs(panelBox.x + panelBox.width / 2 - viewport.width / 2)).toBeLessThanOrEqual(8);
   expect(panelBox.x).toBeGreaterThanOrEqual(0);
   expect(panelBox.x + panelBox.width).toBeLessThanOrEqual(viewport.width);
+  expect(rootBox.width).toBeLessThanOrEqual(720);
+  expect(rootBox.x + rootBox.width).toBeLessThanOrEqual(viewport.width);
+  expect(Math.abs((rootBox.x + rootBox.width / 2) - viewport.width / 2)).toBeLessThanOrEqual(6);
 
   const completedRow = page.locator('.todo-row.is-complete');
   await expect(completedRow).toHaveCount(1);
+
+  const deleteButtons = page.getByRole('button', { name: /^Delete task / });
+  const deleteCount = await deleteButtons.count();
+  for (let index = 0; index < deleteCount; index += 1) {
+    const buttonRect = await deleteButtons.nth(index).boundingBox();
+    expect(buttonRect).toBeTruthy();
+    expect(buttonRect.x).toBeGreaterThanOrEqual(panelBox.x - 2);
+    expect(buttonRect.x + buttonRect.width).toBeLessThanOrEqual(panelBox.x + panelBox.width + 2);
+    expect(buttonRect.y).toBeGreaterThanOrEqual(panelBox.y - 2);
+    expect(buttonRect.y + buttonRect.height).toBeLessThanOrEqual(panelBox.y + panelBox.height + 2);
+  }
 });
 
 test('Mobile visual path: stacked add form and in-viewport controls', async ({ page }) => {
@@ -107,6 +121,24 @@ test('Mobile visual path: stacked add form and in-viewport controls', async ({ p
   expect(panelRect).toBeTruthy();
   expect(panelRect.width).toBeLessThanOrEqual(viewport.width + 1);
   expectWithinViewport(page, panelRect);
+
+  const listRows = page.locator('.todo-row');
+  const rowCount = await listRows.count();
+  for (let i = 0; i < rowCount; i += 1) {
+    const rect = await listRows.nth(i).boundingBox();
+    expect(rect).toBeTruthy();
+    expect(rect.x).toBeGreaterThanOrEqual(-1);
+    expect(rect.x + rect.width).toBeLessThanOrEqual(viewport.width + 1);
+  }
+
+  const buttonRects = await todoForm.boundingBox();
+  expect(buttonRects).toBeTruthy();
+  expect(inputRect.x).toBeGreaterThanOrEqual(panelRect.x - 2);
+  expect(buttonRect.x).toBeGreaterThanOrEqual(panelRect.x - 2);
+  expect(inputRect.x + inputRect.width).toBeLessThanOrEqual(viewport.width + 2);
+  expect(buttonRect.x + buttonRect.width).toBeLessThanOrEqual(viewport.width + 2);
+
+  await expect(page.getByText('3 total, 2 active, 1 completed')).toBeVisible();
 });
 
 test('Empty-state path: panel displays empty message when no todos exist', async ({ page }) => {
@@ -136,4 +168,3 @@ test('Accessibility path: controls expose usable role or labels', async ({ page 
 
   await expect(page.getByRole('button', { name: /^Delete task/ }).first()).toBeVisible();
 });
-
