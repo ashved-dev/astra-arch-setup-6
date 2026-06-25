@@ -6,6 +6,8 @@
   "scripts": {
     "dev": "vite",
     "api": "node src/api/server.js",
+    "dev:stack": "sh -c 'HOST=127.0.0.1 PORT=4174 npm run api >/tmp/astra-arch-setup-6-api.log 2>&1 & npm run dev -- --host 127.0.0.1 --port 4173'",
+    "db:migrate": "psql \"$DATABASE_URL\" -v ON_ERROR_STOP=1 -f db/migrations/001_create_todos.sql",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
     "lint": "tsc --noEmit",

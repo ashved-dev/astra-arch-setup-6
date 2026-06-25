@@ -27,6 +27,7 @@ test('detects npm ci when lockfile is present and selects available scripts', ()
         lint: 'echo lint',
         build: 'echo build',
         test: 'echo test',
+        e2e: 'echo e2e',
       },
     };
     fs.writeFileSync(path.join(tempDir, 'package.json'), JSON.stringify(packageJson, null, 2));
@@ -34,7 +35,7 @@ test('detects npm ci when lockfile is present and selects available scripts', ()
 
     const config = getCiConfiguration(tempDir);
     assert.equal(config.hasPackage, true);
-    assert.deepEqual(config.commands, ['lint', 'build', 'test']);
+    assert.deepEqual(config.commands, ['lint', 'build', 'test', 'e2e']);
     assert.deepEqual(config.installCommand, ['npm', 'ci']);
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
@@ -50,6 +51,7 @@ test('prefers npm install when lockfile is missing and keeps only supported scri
         lint: 'echo lint',
         build: 'echo build',
         test: '',
+        e2e: 'echo e2e',
         deploy: 'echo deploy',
       },
     };
@@ -57,7 +59,7 @@ test('prefers npm install when lockfile is missing and keeps only supported scri
 
     const config = getCiConfiguration(tempDir);
     assert.equal(config.hasPackage, true);
-    assert.deepEqual(config.commands, ['lint', 'build']);
+    assert.deepEqual(config.commands, ['lint', 'build', 'e2e']);
     assert.deepEqual(config.installCommand, ['npm', 'install']);
   } finally {
     rmSync(tempDir, { recursive: true, force: true });
