@@ -4,12 +4,22 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "lint": "node --check scripts/ci-gates.mjs",
-    "build": "node -e \"console.log('build skipped: no frontend artifacts yet')\"",
-    "test": "node --test test/ci-gates.test.mjs",
-    "e2e": "playwright test e2e/ci-workflow.spec.js"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "lint": "tsc --noEmit",
+    "test": "node --test test/**/*.test.mjs",
+    "e2e": "playwright test",
+    "lint:e2e": "playwright test e2e/ci-workflow.spec.js e2e/bootstrap-app.spec.js"
   },
   "devDependencies": {
-    "@playwright/test": "^1.49.1"
+    "@playwright/test": "^1.49.1",
+    "@types/react": "^18.2.79",
+    "@types/react-dom": "^18.2.24",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "^5.7.2",
+    "vite": "^5.4.14",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
   }
 }
