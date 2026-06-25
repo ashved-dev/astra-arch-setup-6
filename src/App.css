@@ -119,11 +119,16 @@
 }
 
 .todo-check {
+  appearance: none;
+  border: 0;
   width: 22px;
   height: 22px;
   border: 2px solid #d8dee8;
   border-radius: 50%;
   flex-shrink: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
 }
 
 .todo-row.is-complete .todo-check {
