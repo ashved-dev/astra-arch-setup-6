@@ -1,0 +1,66 @@
+name: Astra CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - "astra/**"
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  quality:
+    name: Quality gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Detect package.json
+        id: package
+        run: |
+          if [ ! -f package.json ]; then
+            echo "has_package=false" >> "$GITHUB_OUTPUT"
+            echo "No package.json found; skipping quality gates for repository bootstrap."
+            exit 0
+          fi
+          echo "has_package=true" >> "$GITHUB_OUTPUT"
+
+      - name: Install dependencies
+        if: steps.package.outputs.has_package == 'true'
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            npm install
+          fi
+
+      - name: Lint
+        if: steps.package.outputs.has_package == 'true'
+        run: npm run lint --if-present
+
+      - name: Build
+        if: steps.package.outputs.has_package == 'true'
+        run: npm run build --if-present
+
+      - name: Test
+        if: steps.package.outputs.has_package == 'true'
+        run: |
+          if node -e "const p=require('./package.json'); process.exit(p.scripts && p.scripts.test ? 0 : 1)"; then
+            if node -e "const p=require('./package.json'); process.exit(/vitest/.test(p.scripts.test) ? 0 : 1)"; then
+              npm test -- --run
+            else
+              npm test
+            fi
+          else
+            echo "No test script configured"
+          fi
