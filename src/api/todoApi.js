@@ -215,38 +215,69 @@ export function createTodoApiHandler({ repository } = {}) {
           const supportedFields = new Set(['title', 'complete', 'completed']);
           const providedFields = Object.keys(body).filter((field) => Object.prototype.hasOwnProperty.call(body, field));
           const unknownFields = providedFields.filter((field) => !supportedFields.has(field));
+          const hasTitle = Object.prototype.hasOwnProperty.call(body, 'title');
+          const hasComplete = Object.prototype.hasOwnProperty.call(body, 'complete');
+          const hasCompleted = Object.prototype.hasOwnProperty.call(body, 'completed');
 
           if (!providedFields.length || unknownFields.length > 0) {
             sendJson(response, 400, createValidationError('Only title and complete/completed fields are supported.', unknownFields));
             return;
           }
 
+          if (hasComplete && hasCompleted) {
+            sendJson(response, 400, createValidationError('Provide either complete or completed, not both.'));
+            return;
+          }
+
+          const completeField = hasComplete ? 'complete' : 'completed';
           let nextTodo = null;
-          if (Object.prototype.hasOwnProperty.call(body, 'title')) {
+          let validatedTitle;
+          let validatedComplete;
+
+          if (hasTitle) {
             if (typeof body.title !== 'string' || !body.title.trim()) {
               sendJson(response, 400, createValidationError('Todo title must be a non-empty string.'));
               return;
             }
 
-            nextTodo = await todoRepository.updateTitle(todoId, body.title.trim());
-            if (!nextTodo) {
-              sendJson(response, 404, createNotFoundError(`Todo with id ${todoId} not found.`));
-              return;
-            }
+            validatedTitle = body.title.trim();
           }
 
-          if (Object.prototype.hasOwnProperty.call(body, 'complete') || Object.prototype.hasOwnProperty.call(body, 'completed')) {
-            const complete = Object.prototype.hasOwnProperty.call(body, 'complete') ? body.complete : body.completed;
+          if (hasComplete || hasCompleted) {
+            const complete = body[completeField];
             if (complete !== true && complete !== false) {
               sendJson(response, 400, createValidationError('Todo complete state must be true or false.'));
               return;
             }
 
-            nextTodo = await todoRepository.updateComplete(todoId, complete);
-            if (!nextTodo) {
-              sendJson(response, 404, createNotFoundError(`Todo with id ${todoId} not found.`));
-              return;
+            validatedComplete = complete;
+          }
+
+          try {
+            if (hasTitle) {
+              nextTodo = await todoRepository.updateTitle(todoId, validatedTitle);
+              if (!nextTodo) {
+                sendJson(response, 404, createNotFoundError(`Todo with id ${todoId} not found.`));
+                return;
+              }
             }
+
+            if (hasComplete || hasCompleted) {
+              nextTodo = await todoRepository.updateComplete(todoId, validatedComplete);
+              if (!nextTodo) {
+                sendJson(response, 404, createNotFoundError(`Todo with id ${todoId} not found.`));
+                return;
+              }
+            }
+          } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            sendJson(response, 500, createDatabaseError(message));
+            return;
+          }
+
+          if (!nextTodo) {
+            sendJson(response, 404, createNotFoundError(`Todo with id ${todoId} not found.`));
+            return;
           }
 
           sendJson(response, 200, normalizeTodoForResponse(nextTodo));

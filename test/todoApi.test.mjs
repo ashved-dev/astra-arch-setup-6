@@ -238,6 +238,61 @@ test('POST and PATCH reject blank titles and do not mutate', async () => {
   }
 });
 
+test('PATCH validates mixed title and complete payload before mutating and returns validation errors for invalid complete', async () => {
+  const repository = createStatefulRepository([{ id: 1, title: 'Original', complete: false, position: 1 }]);
+  const server = await startApiServer(repository);
+  try {
+    const response = await fetch(`${server.url}/api/todos/1`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ title: 'Changed', complete: 'bad' }),
+    });
+    const payload = await response.json();
+    const rows = repository.getRows();
+
+    assert.equal(response.status, 400);
+    assert.equal(payload.error, 'VALIDATION_ERROR');
+    assert.equal(rows[0].title, 'Original');
+    assert.equal(rows[0].complete, false);
+  } finally {
+    await server.close();
+  }
+});
+
+test('PATCH with repository failure returns stable database errors', async () => {
+  const server = await startApiServer(createErrorRepository());
+  try {
+    const response = await fetch(`${server.url}/api/todos/1`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ title: 'Will fail' }),
+    });
+    const payload = await response.json();
+
+    assert.equal(response.status, 500);
+    assert.equal(payload.error, 'DATABASE_ERROR');
+  } finally {
+    await server.close();
+  }
+});
+
+test('PATCH with completion update repository failure returns database error', async () => {
+  const server = await startApiServer(createErrorRepository());
+  try {
+    const response = await fetch(`${server.url}/api/todos/1`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ complete: true }),
+    });
+    const payload = await response.json();
+
+    assert.equal(response.status, 500);
+    assert.equal(payload.error, 'DATABASE_ERROR');
+  } finally {
+    await server.close();
+  }
+});
+
 test('DELETE unknown todo returns 404', async () => {
   const server = await startApiServer(createStatefulRepository());
   try {

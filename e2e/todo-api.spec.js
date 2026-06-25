@@ -207,6 +207,28 @@ test.describe('Todo API endpoints', () => {
     expect(todos[0].title).toBe('Persisted');
   });
 
+  test('PATCH validates mixed payload and does not mutate on invalid types', async ({ request }) => {
+    await request.post(`${api.url}/api/todos`, {
+      data: { title: 'Atomic' },
+      headers: { 'content-type': 'application/json' },
+    });
+
+    const invalidPatch = await request.patch(`${api.url}/api/todos/1`, {
+      data: { title: 'Changed', complete: 'bad' },
+      headers: { 'content-type': 'application/json' },
+    });
+    const invalidBody = await invalidPatch.json();
+
+    expect(invalidPatch.status()).toBe(400);
+    expect(invalidBody.error).toBe('VALIDATION_ERROR');
+
+    const listResponse = await request.get(`${api.url}/api/todos`);
+    const todos = await listResponse.json();
+    expect(todos).toHaveLength(1);
+    expect(todos[0].title).toBe('Atomic');
+    expect(todos[0].complete).toBe(false);
+  });
+
   test('Planned use case 6: deleting unknown todo returns not found error', async ({ request }) => {
     const response = await request.delete(`${api.url}/api/todos/999`);
     const body = await response.json();
