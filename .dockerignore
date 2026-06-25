@@ -1,0 +1,11 @@
+.git
+.github
+node_modules
+npm-debug.log
+npm-debug.log*
+dist
+.vite
+test
+e2e
+test-results
+coverage

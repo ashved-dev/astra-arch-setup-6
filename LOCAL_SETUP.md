@@ -13,4 +13,27 @@
    - `npm run test`
    - `npm run e2e`
 
-For CI, use the same `DATABASE_URL` format as `postgres://postgres:postgres@127.0.0.1:5432/astra_arch_setup_6` with your environment-specific database credentials.
+For CI, use the same `DATABASE_URL` format as `postgres://postgres:${POSTGRES_PASSWORD}@127.0.0.1:5432/astra_arch_setup_6` with your environment-specific database credentials.
+
+## Docker runtime
+
+1. Build the production image:
+   - `docker build -t astra-arch-setup-6-todo .`
+2. Start Postgres:
+   - `POSTGRES_PASSWORD=postgres docker run -d --name astra-arch-setup-6-postgres -e POSTGRES_DB=astra_arch_setup_6 -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=$POSTGRES_PASSWORD -p 5432:5432 postgres:16-alpine`
+3. Apply schema for the containerized app:
+   - `DATABASE_URL=postgres://postgres:${POSTGRES_PASSWORD}@host.docker.internal:5432/astra_arch_setup_6 npm run db:migrate`
+4. Run the app container:
+   - `docker run --rm -p 4173:4173 -e DATABASE_URL=postgres://postgres:${POSTGRES_PASSWORD}@host.docker.internal:5432/astra_arch_setup_6 -e PORT=4173 astra-arch-setup-6-todo`
+5. Verify:
+   - `curl http://127.0.0.1:4173/`
+   - `curl http://127.0.0.1:4173/api/health`
+   - `curl http://127.0.0.1:4173/api/todos`
+
+## Optional docker-compose path
+
+Start both services together with:
+
+- `docker compose up --build`
+
+Compose exposes the app on `http://127.0.0.1:4173`.
