@@ -1,14 +1,18 @@
 import { expect, test } from '@playwright/test';
 
+import { createMockTodoApi } from './utils/todoApiMock.js';
+
+let todoApi;
+
 async function addTodo(page, title) {
   await page.getByRole('textbox', { name: 'Task title' }).fill(title);
   await page.getByRole('button', { name: 'Add task' }).click();
 }
 
 test.beforeEach(async ({ page }) => {
+  todoApi = await createMockTodoApi(page);
+  await todoApi.clear();
   await page.goto('/');
-  await page.evaluate(() => localStorage.clear());
-  await page.reload();
 });
 
 test('Planned edit use case 1: happy path saves inline title updates', async ({ page }) => {
@@ -75,7 +79,6 @@ test('Planned edit use case 5: completed-filter edit flow keeps filtered item vi
 test('Planned edit use case 6: responsive edit-save flow at 390px has no horizontal overflow', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
-  await page.evaluate(() => localStorage.clear());
 
   await addTodo(page, 'Mobile flow');
   await page.getByRole('button', { name: 'Edit task Mobile flow' }).click();

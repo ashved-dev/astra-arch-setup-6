@@ -1,6 +1,12 @@
 import './App.css';
-import { FormEvent, useEffect, useMemo, useState } from 'react';
-import { loadTodosFromStorage, saveTodosToStorage } from './todoStorage.js';
+import { FormEvent, useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  createTodo,
+  deleteTodo,
+  getTodoRequestErrorMessage,
+  listTodos,
+  updateTodo,
+} from './todoApiClient.js';
 
 type Todo = {
   id: number;
@@ -10,41 +16,76 @@ type Todo = {
 
 type Filter = 'all' | 'active' | 'completed';
 
-function createTodoId(todos: Todo[]): number {
-  return todos.length ? Math.max(...todos.map((todo) => todo.id)) + 1 : 1;
-}
-
 function App() {
-  const [todos, setTodos] = useState<Todo[]>(() => loadTodosFromStorage());
+  const [todos, setTodos] = useState<Todo[]>([]);
   const [newTodoTitle, setNewTodoTitle] = useState('');
   const [validationMessage, setValidationMessage] = useState('');
+  const [apiErrorMessage, setApiErrorMessage] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
   const [editingTodoId, setEditingTodoId] = useState<number | null>(null);
   const [editingTodoTitle, setEditingTodoTitle] = useState('');
   const [editingValidationMessage, setEditingValidationMessage] = useState('');
   const [deletingTodoId, setDeletingTodoId] = useState<number | null>(null);
+  const [isLoadingTodos, setIsLoadingTodos] = useState(true);
+  const [isPersisting, setIsPersisting] = useState(false);
 
-  const activeCount = useMemo(
-    () => todos.filter((todo) => !todo.complete).length,
-    [todos],
-  );
+  const activeCount = useMemo(() => todos.filter((todo) => !todo.complete).length, [todos]);
   const completedCount = todos.length - activeCount;
 
+  const loadTodos = useCallback(async (showSpinner = true) => {
+    if (showSpinner) {
+      setIsLoadingTodos(true);
+    }
+
+    try {
+      const nextTodos = await listTodos();
+      setTodos(nextTodos);
+      setApiErrorMessage('');
+    } catch (error) {
+      setApiErrorMessage(getTodoRequestErrorMessage(error, 'Unable to load todos from the server.'));
+    } finally {
+      setIsLoadingTodos(false);
+      setIsPersisting(false);
+    }
+  }, []);
+
   useEffect(() => {
-    saveTodosToStorage(todos);
-  }, [todos]);
+    void loadTodos(true);
+  }, [loadTodos]);
+
+  const runMutation = useCallback(
+    async (mutation: () => Promise<unknown>) => {
+      if (isPersisting) {
+        return;
+      }
+
+      setIsPersisting(true);
+      setApiErrorMessage('');
+
+      try {
+        await mutation();
+        await loadTodos(false);
+      } catch (error) {
+        setApiErrorMessage(getTodoRequestErrorMessage(error, 'Unable to save changes.'));
+        setIsPersisting(false);
+      }
+    },
+    [isPersisting, loadTodos],
+  );
 
   const visibleTodos = useMemo(() => {
     if (filter === 'active') {
       return todos.filter((todo) => !todo.complete);
     }
+
     if (filter === 'completed') {
       return todos.filter((todo) => todo.complete);
     }
+
     return todos;
   }, [filter, todos]);
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const title = newTodoTitle.trim();
 
@@ -54,14 +95,17 @@ function App() {
     }
 
     setValidationMessage('');
-    setTodos((prev) => [...prev, { id: createTodoId(prev), title, complete: false }]);
     setNewTodoTitle('');
+    await runMutation(() => createTodo(title));
   };
 
-  const toggleTodo = (id: number) => {
-    setTodos((prev) =>
-      prev.map((todo) => (todo.id === id ? { ...todo, complete: !todo.complete } : todo)),
-    );
+  const toggleTodo = async (id: number) => {
+    const todo = todos.find((current) => current.id === id);
+    if (!todo) {
+      return;
+    }
+
+    await runMutation(() => updateTodo(id, { complete: !todo.complete }));
   };
 
   const clearEditingState = () => {
@@ -79,8 +123,11 @@ function App() {
     setDeletingTodoId(null);
   };
 
-  const confirmDeleteTodo = (id: number) => {
-    setTodos((prev) => prev.filter((todo) => todo.id !== id));
+  const confirmDeleteTodo = async (id: number) => {
+    await runMutation(async () => {
+      await deleteTodo(id);
+    });
+
     setDeletingTodoId((currentId) => (currentId === id ? null : currentId));
     if (editingTodoId === id) {
       clearEditingState();
@@ -98,17 +145,29 @@ function App() {
     clearEditingState();
   };
 
-  const saveEditingTodo = (id: number) => {
+  const saveEditingTodo = async (id: number) => {
     const title = editingTodoTitle.trim();
+
     if (!title) {
       setEditingValidationMessage('Task title is required');
       return;
     }
 
-    setTodos((prev) => prev.map((todo) => (todo.id === id ? { ...todo, title } : todo)));
-    setEditingTodoId(null);
-    setEditingTodoTitle('');
-    setEditingValidationMessage('');
+    await runMutation(async () => {
+      await updateTodo(id, { title });
+      clearEditingState();
+    });
+  };
+
+  const clearCompletedTodos = async () => {
+    const completedTodos = todos.filter((todo) => todo.complete);
+    if (completedTodos.length === 0) {
+      return;
+    }
+
+    await runMutation(() =>
+      Promise.all(completedTodos.map((todo) => deleteTodo(todo.id)) as Promise<unknown>[]),
+    );
   };
 
   return (
@@ -135,15 +194,21 @@ function App() {
               onChange={(event) => setNewTodoTitle(event.target.value)}
               aria-invalid={Boolean(validationMessage)}
               aria-describedby={validationMessage ? 'todo-validation' : undefined}
+              disabled={isPersisting}
             />
-            <button type="submit" className="add-button" aria-label="Add task">
+            <button
+              type="submit"
+              className="add-button"
+              aria-label="Add task"
+              disabled={isPersisting}
+            >
               Add
             </button>
           </form>
 
           {validationMessage ? (
             <p id="todo-validation" role="status" className="todo-validation" aria-live="polite">
-              Task title is required
+              {validationMessage}
             </p>
           ) : null}
 
@@ -153,6 +218,7 @@ function App() {
               className={`filter-button ${filter === 'all' ? 'is-active' : ''}`}
               aria-pressed={filter === 'all'}
               onClick={() => setFilter('all')}
+              disabled={isPersisting}
             >
               All
             </button>
@@ -161,6 +227,7 @@ function App() {
               className={`filter-button ${filter === 'active' ? 'is-active' : ''}`}
               aria-pressed={filter === 'active'}
               onClick={() => setFilter('active')}
+              disabled={isPersisting}
             >
               Active
             </button>
@@ -169,136 +236,183 @@ function App() {
               className={`filter-button ${filter === 'completed' ? 'is-active' : ''}`}
               aria-pressed={filter === 'completed'}
               onClick={() => setFilter('completed')}
+              disabled={isPersisting}
             >
               Completed
             </button>
+            <button
+              type="button"
+              className="filter-button"
+              onClick={clearCompletedTodos}
+              disabled={isPersisting || completedCount === 0}
+            >
+              Clear completed
+            </button>
           </nav>
 
-          {visibleTodos.length === 0 ? (
-            <div className="todo-empty" role="status" aria-live="polite">
-              <p>No tasks yet. Add a task to get started.</p>
-            </div>
+          {isLoadingTodos ? (
+            <p className="todo-status todo-loading" role="status" aria-live="polite">
+              Loading tasks...
+            </p>
           ) : (
-            <ul className="todo-list" aria-live="polite">
-              {visibleTodos.map((todo) => (
-                <li
-                  key={todo.id}
-                  className={`todo-row ${todo.complete ? 'is-complete' : ''} ${
-                    editingTodoId === todo.id ? 'is-editing' : ''
-                  } ${deletingTodoId === todo.id ? 'is-deleting' : ''}`}
-                >
-                  {editingTodoId === todo.id ? (
-                    <form
-                      className="todo-edit-form"
-                      onSubmit={(event) => {
-                        event.preventDefault();
-                        saveEditingTodo(todo.id);
-                      }}
+            <>
+              {apiErrorMessage ? (
+                <div className="todo-status todo-error" role="alert" aria-live="polite">
+                  <p>{apiErrorMessage}</p>
+                  <button
+                    type="button"
+                    className="retry-button"
+                    onClick={() => loadTodos(false)}
+                    disabled={isPersisting}
+                  >
+                    Retry
+                  </button>
+                </div>
+              ) : null}
+
+              {visibleTodos.length === 0 ? (
+                <div className="todo-empty" role="status" aria-live="polite">
+                  <p>No tasks yet. Add a task to get started.</p>
+                </div>
+              ) : (
+                <ul className="todo-list" aria-live="polite">
+                  {visibleTodos.map((todo) => (
+                    <li
+                      key={todo.id}
+                      className={`todo-row ${todo.complete ? 'is-complete' : ''} ${
+                        editingTodoId === todo.id ? 'is-editing' : ''
+                      } ${deletingTodoId === todo.id ? 'is-deleting' : ''}`}
                     >
-                      <button
-                        type="button"
-                        className={`todo-check ${todo.complete ? 'is-complete' : ''}`}
-                        aria-label={`Mark task ${todo.title} as ${
-                          todo.complete ? 'active' : 'completed'
-                        }`}
-                        onClick={() => toggleTodo(todo.id)}
-                      />
-                      <label htmlFor={`edit-title-${todo.id}`} className="sr-only">
-                        Edit title
-                      </label>
-                      <input
-                        id={`edit-title-${todo.id}`}
-                        className="todo-edit-input"
-                        type="text"
-                        value={editingTodoTitle}
-                        onChange={(event) => setEditingTodoTitle(event.target.value)}
-                        aria-label={`Edit title for task ${todo.title}`}
-                        aria-invalid={Boolean(editingValidationMessage)}
-                        aria-describedby={editingValidationMessage ? `edit-validation-${todo.id}` : undefined}
-                      />
-                      <button
-                        type="submit"
-                        className="todo-edit-save"
-                        aria-label={`Save task ${todo.title}`}
-                      >
-                        Save
-                      </button>
-                      <button
-                        type="button"
-                        className="todo-edit-cancel"
-                        aria-label={`Cancel editing ${todo.title}`}
-                        onClick={cancelEditingTodo}
-                      >
-                        Cancel
-                      </button>
-                      {editingValidationMessage ? (
-                        <p
-                          id={`edit-validation-${todo.id}`}
-                          role="status"
-                          className="edit-validation"
-                          aria-live="polite"
+                      {editingTodoId === todo.id ? (
+                        <form
+                          className="todo-edit-form"
+                          onSubmit={(event) => {
+                            event.preventDefault();
+                            void saveEditingTodo(todo.id);
+                          }}
                         >
-                          {editingValidationMessage}
-                        </p>
-                      ) : null}
-                    </form>
-                  ) : deletingTodoId === todo.id ? (
-                    <>
-                      <button
-                        type="button"
-                        className={`todo-check ${todo.complete ? 'is-complete' : ''}`}
-                        aria-label={`Mark task ${todo.title} as ${todo.complete ? 'active' : 'completed'}`}
-                        onClick={() => toggleTodo(todo.id)}
-                      />
-                      <span className="todo-title">{todo.title}</span>
-                      <span className="todo-delete-prompt">Delete?</span>
-                      <button
-                        type="button"
-                        className="todo-delete todo-action todo-delete-confirm"
-                        aria-label={`Confirm delete ${todo.title}`}
-                        onClick={() => confirmDeleteTodo(todo.id)}
-                      >
-                        Confirm
-                      </button>
-                      <button
-                        type="button"
-                        className="todo-delete-cancel todo-action"
-                        aria-label={`Cancel delete ${todo.title}`}
-                        onClick={cancelDeleteTodo}
-                      >
-                        Cancel
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <button
-                        type="button"
-                        className={`todo-check ${todo.complete ? 'is-complete' : ''}`}
-                        aria-label={`Mark task ${todo.title} as ${todo.complete ? 'active' : 'completed'}`}
-                        onClick={() => toggleTodo(todo.id)}
-                      />
-                      <span className="todo-title">{todo.title}</span>
-                      <button
-                        type="button"
-                        className="todo-action"
-                        aria-label={`Edit task ${todo.title}`}
-                        onClick={() => startEditingTodo(todo)}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        type="button"
-                        className="todo-delete todo-action"
-                        aria-label={`Delete task ${todo.title}`}
-                        onClick={() => requestDeleteTodo(todo.id)}
-                      >
-                        ×
-                      </button>
-                    </>
-                  )}
-                </li>
-              ))}
-            </ul>
+                          <button
+                            type="button"
+                            className={`todo-check ${todo.complete ? 'is-complete' : ''}`}
+                            aria-label={`Mark task ${todo.title} as ${
+                              todo.complete ? 'active' : 'completed'
+                            }`}
+                            onClick={() => void toggleTodo(todo.id)}
+                            disabled={isPersisting}
+                          />
+                          <label htmlFor={`edit-title-${todo.id}`} className="sr-only">
+                            Edit title
+                          </label>
+                          <input
+                            id={`edit-title-${todo.id}`}
+                            className="todo-edit-input"
+                            type="text"
+                            value={editingTodoTitle}
+                            onChange={(event) => setEditingTodoTitle(event.target.value)}
+                            aria-label={`Edit title for task ${todo.title}`}
+                            aria-invalid={Boolean(editingValidationMessage)}
+                            aria-describedby={
+                              editingValidationMessage ? `edit-validation-${todo.id}` : undefined
+                            }
+                            disabled={isPersisting}
+                          />
+                          <button
+                            type="submit"
+                            className="todo-edit-save"
+                            aria-label={`Save task ${todo.title}`}
+                            disabled={isPersisting}
+                          >
+                            Save
+                          </button>
+                          <button
+                            type="button"
+                            className="todo-edit-cancel"
+                            aria-label={`Cancel editing ${todo.title}`}
+                            onClick={cancelEditingTodo}
+                            disabled={isPersisting}
+                          >
+                            Cancel
+                          </button>
+                          {editingValidationMessage ? (
+                            <p
+                              id={`edit-validation-${todo.id}`}
+                              role="status"
+                              className="edit-validation"
+                              aria-live="polite"
+                            >
+                              {editingValidationMessage}
+                            </p>
+                          ) : null}
+                        </form>
+                      ) : deletingTodoId === todo.id ? (
+                        <>
+                          <button
+                            type="button"
+                            className={`todo-check ${todo.complete ? 'is-complete' : ''}`}
+                            aria-label={`Mark task ${todo.title} as ${
+                              todo.complete ? 'active' : 'completed'
+                            }`}
+                            onClick={() => void toggleTodo(todo.id)}
+                            disabled={isPersisting}
+                          />
+                          <span className="todo-title">{todo.title}</span>
+                          <span className="todo-delete-prompt">Delete?</span>
+                          <button
+                            type="button"
+                            className="todo-delete todo-action todo-delete-confirm"
+                            aria-label={`Confirm delete ${todo.title}`}
+                            onClick={() => void confirmDeleteTodo(todo.id)}
+                            disabled={isPersisting}
+                          >
+                            Confirm
+                          </button>
+                          <button
+                            type="button"
+                            className="todo-delete todo-action todo-delete-cancel"
+                            aria-label={`Cancel delete ${todo.title}`}
+                            onClick={cancelDeleteTodo}
+                            disabled={isPersisting}
+                          >
+                            Cancel
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button
+                            type="button"
+                            className={`todo-check ${todo.complete ? 'is-complete' : ''}`}
+                            aria-label={`Mark task ${todo.title} as ${
+                              todo.complete ? 'active' : 'completed'
+                            }`}
+                            onClick={() => void toggleTodo(todo.id)}
+                            disabled={isPersisting}
+                          />
+                          <span className="todo-title">{todo.title}</span>
+                          <button
+                            type="button"
+                            className="todo-action"
+                            aria-label={`Edit task ${todo.title}`}
+                            onClick={() => startEditingTodo(todo)}
+                            disabled={isPersisting}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            className="todo-delete todo-action"
+                            aria-label={`Delete task ${todo.title}`}
+                            onClick={() => requestDeleteTodo(todo.id)}
+                            disabled={isPersisting}
+                          >
+                            ×
+                          </button>
+                        </>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
           )}
         </section>
       </div>

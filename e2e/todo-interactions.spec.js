@@ -1,4 +1,7 @@
 import { expect, test } from '@playwright/test';
+import { createMockTodoApi } from './utils/todoApiMock.js';
+
+let todoApi;
 
 async function clickDeleteConfirm(page, title, action = 'confirm') {
   await page.getByRole('button', { name: `Delete task ${title}` }).click();
@@ -13,9 +16,21 @@ async function clickDeleteConfirm(page, title, action = 'confirm') {
 }
 
 test.beforeEach(async ({ page }) => {
+  todoApi = await createMockTodoApi(page);
+  await todoApi.clear();
   await page.goto('/');
-  await page.evaluate(() => localStorage.clear());
-  await page.reload();
+});
+
+test('Planned interaction use case 0: fresh load shows loading and then data', async ({ page }) => {
+  await todoApi.setDelay(150);
+  await page.goto('/');
+  await expect(page.getByText('Loading tasks...')).toBeVisible();
+
+  await page.getByRole('textbox', { name: 'Task title' }).fill('Delayed seed');
+  await page.getByRole('button', { name: 'Add task' }).click();
+  await expect(page.locator('.todo-row')).toHaveCount(1);
+  await expect(page.getByText('Delayed seed')).toBeVisible();
+  await todoApi.setDelay(0);
 });
 
 test('Planned interaction use case 1: full flow add, validation, toggle, filters, delete, and empty', async ({
@@ -52,10 +67,14 @@ test('Planned interaction use case 1: full flow add, validation, toggle, filters
   let rowCount = await page.locator('.todo-row').count();
   while (rowCount > 0) {
     const firstRow = page.locator('.todo-row').first();
-    const firstRowText = await firstRow.locator('.todo-title').textContent();
-    await expect(firstRowText).toBeTruthy();
-    await clickDeleteConfirm(page, firstRowText, 'confirm');
-    rowCount = await page.locator('.todo-row').count();
+    const deleteButton = firstRow.getByRole('button', { name: /^Delete task / });
+    await expect(deleteButton).toBeVisible();
+    await deleteButton.click();
+    const confirmButton = firstRow.getByRole('button', { name: /^Confirm delete / });
+    await expect(confirmButton).toBeVisible();
+    await confirmButton.click();
+    rowCount -= 1;
+    await expect(page.locator('.todo-row')).toHaveCount(rowCount);
   }
 
   await expect(page.getByText('No tasks yet. Add a task to get started.')).toBeVisible();
@@ -81,16 +100,24 @@ test('Planned interaction use case 2: persistence path keeps completed and activ
   await expect(page.getByRole('button', { name: 'Mark task Second todo as active' })).toBeVisible();
 });
 
+test('Planned interaction use case 6: API failure keeps current todo list visible', async ({ page }) => {
+  await page.getByRole('textbox', { name: 'Task title' }).fill('Transient API path');
+  await page.getByRole('button', { name: 'Add task' }).click();
+  await expect(page.locator('.todo-row')).toHaveCount(1);
+
+  await todoApi.setFailure({ status: 500, message: 'Simulated API failure' });
+  await page.getByRole('button', { name: 'Mark task Transient API path as completed' }).click();
+
+  await expect(page.getByRole('alert')).toBeVisible();
+  await expect(page.getByText('Simulated API failure')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Mark task Transient API path as completed' })).toBeVisible();
+});
+
 test('Planned interaction use case 3: invalid storage path does not crash the app', async ({ page }) => {
   const errors = [];
   page.on('pageerror', (error) => {
     errors.push(error);
   });
-
-  await page.evaluate(() => {
-    localStorage.setItem('astra-arch-setup-6-todos', '{bad json]');
-  });
-  await page.reload();
 
   await expect(page.getByText('No tasks yet. Add a task to get started.')).toBeVisible();
   await expect(page.locator('.todo-row')).toHaveCount(0);
@@ -116,9 +143,6 @@ test('Planned interaction use case 4: filter path shows All/Active/Completed cor
 test('Planned interaction use case 5: responsive flow still works at 390px', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
-  await page.evaluate(() => localStorage.clear());
-  await page.reload();
-
   const titleInput = page.getByRole('textbox', { name: 'Task title' });
   const addButton = page.getByRole('button', { name: 'Add task' });
 

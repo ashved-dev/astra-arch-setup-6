@@ -1,5 +1,9 @@
 import { expect, test } from '@playwright/test';
 
+import { createMockTodoApi } from './utils/todoApiMock.js';
+
+let todoApi;
+
 async function addTodo(page, title) {
   await page.getByRole('textbox', { name: 'Task title' }).fill(title);
   await page.getByRole('button', { name: 'Add task' }).click();
@@ -37,9 +41,9 @@ function horizontalOverflow(page) {
 }
 
 test.beforeEach(async ({ page }) => {
+  todoApi = await createMockTodoApi(page);
+  await todoApi.clear();
   await page.goto('/');
-  await page.evaluate(() => localStorage.clear());
-  await page.reload();
 });
 
 test('Planned delete use case 1: cancel path keeps todo visible', async ({ page }) => {
