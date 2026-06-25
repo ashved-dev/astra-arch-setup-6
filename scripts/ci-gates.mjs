@@ -20,7 +20,7 @@ export function getCiConfiguration(projectRoot = process.cwd()) {
   const packageData = JSON.parse(packageContents);
   const scripts = packageData.scripts ?? {};
 
-  const commandNames = ['lint', 'build', 'test'];
+  const commandNames = ['lint', 'build', 'test', 'e2e'];
   const commands = commandNames.filter(
     (name) => typeof scripts[name] === 'string' && scripts[name].trim().length > 0
   );
@@ -55,13 +55,16 @@ function runCommand(command, args, projectRoot) {
 
 export function runCi(projectRoot = process.cwd()) {
   const config = getCiConfiguration(projectRoot);
+  const skipInstall = process.env.CI_SKIP_INSTALL === '1';
 
   if (!config.hasPackage) {
     console.log('No package.json found. Skipping CI quality gates.');
     return { skipped: true, config };
   }
 
-  runCommand(config.installCommand[0], config.installCommand.slice(1), projectRoot);
+  if (!skipInstall && config.installCommand) {
+    runCommand(config.installCommand[0], config.installCommand.slice(1), projectRoot);
+  }
 
   for (const command of config.commands) {
     runCommand('npm', ['run', command], projectRoot);
