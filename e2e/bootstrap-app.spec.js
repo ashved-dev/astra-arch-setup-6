@@ -1,5 +1,5 @@
 import { execSync } from 'node:child_process';
-import { cpSync, mkdtempSync, rmSync } from 'node:fs';
+import { cpSync, existsSync, mkdtempSync, rmSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { test, expect } from '@playwright/test';
@@ -40,16 +40,16 @@ test('Bootstrap render: root route shows app shell without runtime errors', asyn
 });
 
 test('Build path: production build completes successfully', async () => {
-  const output = withCleanBuildWorkspace((workspace) => {
-    return execSync('npm ci && npm run build', {
+  withCleanBuildWorkspace((workspace) => {
+    execSync('npm ci && npm run build', {
       cwd: workspace,
       encoding: 'utf8',
       stdio: 'pipe',
       shell: true,
     });
-  });
 
-  expect(output).toContain('dist/index.html');
+    expect(existsSync(path.join(workspace, 'dist', 'index.html'))).toBe(true);
+  });
 });
 
 test('Mobile path: app remains visible at 390px viewport width', async ({ page }) => {
