@@ -10,14 +10,12 @@ const cssPath = path.join(projectRoot, 'src', 'App.css');
 const appText = fs.readFileSync(appPath, 'utf8');
 const cssText = fs.readFileSync(cssPath, 'utf8');
 
-test('todo ui has the reference-driven structure and sample states', () => {
+test('todo app has interactive state handling and accessibility hooks', () => {
   assert.match(appText, /Simple Todo/);
-  assert.match(appText, /3 total, 2 active, 1 completed/);
-  assert.match(appText, /Draft the first task/);
-  assert.match(appText, /Create project shell/);
-  assert.match(appText, /Verify mobile layout/);
-  assert.match(appText, /is-empty|is-complete|todo-empty|todo-row/);
-  assert.match(appText, /aria-label="Todo filters"/);
+  assert.match(appText, /useState<Filter/);
+  assert.match(appText, /newTodoTitle|handleSubmit|filter/);
+  assert.match(appText, /aria-label={`Mark task/);
+  assert.match(appText, /aria-label={`Delete task /);
 });
 
 test('todo css has desktop and mobile responsive constraints', () => {
@@ -25,4 +23,5 @@ test('todo css has desktop and mobile responsive constraints', () => {
   assert.match(cssText, /@media \(max-width: 520px\)/);
   assert.match(cssText, /grid-template-columns:\s*1fr\s+auto/);
   assert.match(cssText, /width:\s*calc\(100%\s*-\s*24px\)/);
+  assert.match(cssText, /appearance:\s*none/);
 });

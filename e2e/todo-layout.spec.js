@@ -23,9 +23,9 @@ test('Desktop visual path: populated todo layout matches panel structure', async
   await expect(page.getByText('3 total, 2 active, 1 completed')).toBeVisible();
   await expect(page.getByRole('textbox', { name: 'Task title' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Add task' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'All' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Active' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Completed' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'All', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Active', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Completed', exact: true })).toBeVisible();
 
   await expect(page.locator(rowSelector)).toHaveCount(3);
   await expect(page.getByText('Draft the first task')).toBeVisible();
@@ -65,9 +65,9 @@ test('Mobile visual path: stacked add form and in-viewport controls', async ({ p
 
   await expect(titleInput).toBeVisible();
   await expect(addButton).toBeVisible();
-  await expect(page.getByRole('button', { name: 'All' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Active' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Completed' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'All', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Active', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Completed', exact: true })).toBeVisible();
 
   const formRect = await todoForm.boundingBox();
   const inputRect = await titleInput.boundingBox();
@@ -97,9 +97,14 @@ test('Mobile visual path: stacked add form and in-viewport controls', async ({ p
 
 test('Empty-state path: panel displays empty message when no todos exist', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/?state=empty');
+  await page.goto('/');
 
-  await expect(page.getByRole('heading', { name: 'Simple Todo' })).toBeVisible();
+  const deleteButtons = page.getByRole('button', { name: /^Delete task / });
+  const count = await deleteButtons.count();
+  for (let index = 0; index < count; index += 1) {
+    await deleteButtons.first().click();
+  }
+
   await expect(page.getByText('No tasks yet. Add a task to get started.')).toBeVisible();
   await expect(page.locator(rowSelector)).toHaveCount(0);
 });
@@ -109,9 +114,9 @@ test('Accessibility path: controls expose usable role or labels', async ({ page 
 
   await expect(page.getByRole('textbox', { name: 'Task title' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Add task' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'All' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Active' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Completed' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'All', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Active', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Completed', exact: true })).toBeVisible();
 
   const firstDelete = page.getByRole('button', { name: /^Delete task/ }).first();
   await expect(firstDelete).toBeVisible();
