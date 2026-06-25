@@ -10,10 +10,9 @@ const cssPath = path.join(projectRoot, 'src', 'App.css');
 const appText = fs.readFileSync(appPath, 'utf8');
 const cssText = fs.readFileSync(cssPath, 'utf8');
 
-test('todo app has interactive state handling and persistence hooks', () => {
+test('todo app has interactive state handling and accessibility hooks', () => {
   assert.match(appText, /Simple Todo/);
   assert.match(appText, /useState<Filter/);
-  assert.match(appText, /localStorage/);
   assert.match(appText, /newTodoTitle|handleSubmit|filter/);
   assert.match(appText, /aria-label={`Mark task/);
   assert.match(appText, /aria-label={`Delete task /);

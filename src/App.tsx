@@ -1,5 +1,5 @@
 import './App.css';
-import { FormEvent, useEffect, useMemo, useState } from 'react';
+import { FormEvent, useMemo, useState } from 'react';
 
 type Todo = {
   id: number;
@@ -9,53 +9,21 @@ type Todo = {
 
 type Filter = 'all' | 'active' | 'completed';
 
-const STORAGE_KEY = 'astra-arch-setup-6:todos';
-
 const sampleTodos: Todo[] = [
   { id: 1, title: 'Draft the first task', complete: false },
   { id: 2, title: 'Create project shell', complete: true },
   { id: 3, title: 'Verify mobile layout', complete: false },
 ];
 
-function isTodo(item: unknown): item is Todo {
-  return (
-    typeof item === 'object' &&
-    item !== null &&
-    typeof (item as Todo).id === 'number' &&
-    typeof (item as Todo).title === 'string' &&
-    typeof (item as Todo).complete === 'boolean'
-  );
-}
-
-function loadTodos(): Todo[] {
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      return sampleTodos;
-    }
-    const parsed = JSON.parse(raw);
-    if (!Array.isArray(parsed) || parsed.length === 0) {
-      return sampleTodos;
-    }
-    return parsed.every(isTodo) ? parsed : sampleTodos;
-  } catch {
-    return sampleTodos;
-  }
-}
-
 function createTodoId(todos: Todo[]): number {
   return todos.length ? Math.max(...todos.map((todo) => todo.id)) + 1 : 1;
 }
 
 function App() {
-  const [todos, setTodos] = useState<Todo[]>(() => loadTodos());
+  const [todos, setTodos] = useState<Todo[]>(sampleTodos);
   const [newTodoTitle, setNewTodoTitle] = useState('');
   const [validationMessage, setValidationMessage] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
-
-  useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
-  }, [todos]);
 
   const activeCount = useMemo(
     () => todos.filter((todo) => !todo.complete).length,
