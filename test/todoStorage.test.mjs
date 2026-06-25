@@ -62,3 +62,44 @@ test('saveTodosToStorage serializes todos and can be reloaded', () => {
   assert.deepEqual(loadTodosFromStorage(storage), [{ id: 1, title: 'Persist', complete: true }]);
 });
 
+test('loadTodosFromStorage handles malformed non-array payloads', () => {
+  const storage = createStorageStub();
+  storage.setItem(TODO_STORAGE_KEY, '"invalid payload"');
+  assert.deepEqual(loadTodosFromStorage(storage), []);
+});
+
+test('saveTodosToStorage only persists valid normalized todos', () => {
+  const storage = createStorageStub();
+  saveTodosToStorage(
+    [
+      { id: 1, title: '  Trimmed Title  ', complete: true },
+      { id: 0, title: 'Invalid id', complete: false },
+      { id: 2, title: '', complete: false },
+      { id: 3, title: 'Bad complete', complete: 'yes' },
+      null,
+      { id: 4, title: 'Another', complete: false },
+      { title: 'Missing id', complete: true },
+    ],
+    storage,
+  );
+
+  assert.equal(
+    storage.getItem(TODO_STORAGE_KEY),
+    '[{"id":1,"title":"Trimmed Title","complete":true},{"id":3,"title":"Bad complete","complete":false},{"id":4,"title":"Another","complete":false}]',
+  );
+  assert.deepEqual(loadTodosFromStorage(storage), [
+    { id: 1, title: 'Trimmed Title', complete: true },
+    { id: 3, title: 'Bad complete', complete: false },
+    { id: 4, title: 'Another', complete: false },
+  ]);
+});
+
+test('loadTodosFromStorage tolerates storage access failures', () => {
+  const storage = {
+    getItem() {
+      throw new Error('storage blocked');
+    },
+  };
+
+  assert.deepEqual(loadTodosFromStorage(storage), []);
+});
