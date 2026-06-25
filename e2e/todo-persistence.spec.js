@@ -3,12 +3,15 @@ import { expect, test } from '@playwright/test';
 async function resetDatabase(request) {
   const listResponse = await request.get('/api/todos');
   if (!listResponse.ok()) {
-    return false;
+    const message = await listResponse.text();
+    throw new Error(`Postgres API unavailable: /api/todos responded ${listResponse.status()} ${listResponse.statusText()} ${message}`);
   }
 
-  const todos = await listResponse.json();
+  const todos = await listResponse.json().catch(() => {
+    throw new Error('Postgres API unavailable: /api/todos did not return JSON array');
+  });
   if (!Array.isArray(todos)) {
-    return true;
+    throw new Error('Postgres API unavailable: /api/todos did not return an array');
   }
 
   for (const todo of todos) {
@@ -19,7 +22,7 @@ async function resetDatabase(request) {
     await request.delete(`/api/todos/${todo.id}`);
   }
 
-  return true;
+  return todos;
 }
 
 async function confirmDelete(page, title) {
@@ -29,11 +32,7 @@ async function confirmDelete(page, title) {
 }
 
 test.beforeEach(async ({ page, request }) => {
-  const ready = await resetDatabase(request);
-  if (!ready) {
-    test.skip(true, 'Postgres-backed API is unavailable for persistence E2E tests.');
-    return;
-  }
+  await resetDatabase(request);
 
   await page.goto('/');
 });
