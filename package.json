@@ -1,0 +1,15 @@
+{
+  "name": "astra-arch-setup-6",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "lint": "node --check scripts/ci-gates.mjs",
+    "build": "node -e \"console.log('build skipped: no frontend artifacts yet')\"",
+    "test": "node --test test/ci-gates.test.mjs",
+    "e2e": "playwright test e2e/ci-workflow.spec.js"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.1"
+  }
+}

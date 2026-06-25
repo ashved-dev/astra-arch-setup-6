@@ -1,0 +1,26 @@
+name: Astra CI
+
+on:
+  push:
+    branches:
+      - main
+      - "astra/**"
+  pull_request:
+    branches:
+      - main
+      - "astra/**"
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Run CI quality gates
+        run: node scripts/ci-gates.mjs
