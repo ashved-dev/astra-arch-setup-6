@@ -3,6 +3,7 @@ import { cpSync, mkdtempSync, rmSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { test, expect } from '@playwright/test';
+import { createMockTodoApi } from './utils/todoApiMock.js';
 
 const projectRoot = process.cwd();
 
@@ -27,11 +28,12 @@ function withCleanBuildWorkspace(fn) {
 }
 
 test('Bootstrap render: root route shows app shell without runtime errors', async ({ page }) => {
+  const todoApi = await createMockTodoApi(page);
+  await todoApi.clear();
   const errors = [];
   page.on('pageerror', (error) => errors.push(error));
 
   await page.goto('/');
-  await page.evaluate(() => localStorage.clear());
   await expect(page.getByRole('heading', { name: 'Simple Todo' })).toBeVisible();
   await expect(page.getByText('0 total, 0 active, 0 completed')).toBeVisible();
   expect(errors).toHaveLength(0);
@@ -51,6 +53,8 @@ test('Build path: production build completes successfully', async () => {
 });
 
 test('Mobile path: app remains visible at 390px viewport width', async ({ page }) => {
+  const todoApi = await createMockTodoApi(page);
+  await todoApi.clear();
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
   await expect(page.getByRole('heading', { name: 'Simple Todo' })).toBeVisible();

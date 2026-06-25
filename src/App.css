@@ -55,6 +55,11 @@
   outline-offset: 1px;
 }
 
+.todo-form input:disabled {
+  background: #f8fafc;
+  color: #94a3b8;
+}
+
 .add-button {
   height: 44px;
   border: 0;
@@ -67,6 +72,11 @@
   cursor: pointer;
 }
 
+.add-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .todo-validation {
   margin: 0;
   padding: 0 20px 14px;
@@ -77,6 +87,7 @@
 .todo-filters {
   display: flex;
   gap: 8px;
+  flex-wrap: wrap;
   padding: 14px 20px;
   border-bottom: 1px solid #d8dee8;
 }
@@ -92,10 +103,52 @@
   cursor: pointer;
 }
 
+.filter-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .filter-button.is-active {
   border-color: #2563eb;
   background: #2563eb;
   color: white;
+}
+
+.todo-status {
+  margin: 0;
+  padding: 18px 20px;
+  border-bottom: 1px solid #d8dee8;
+  display: grid;
+  gap: 10px;
+}
+
+.todo-loading,
+.todo-status {
+  margin: 0;
+  text-align: left;
+  color: #64748b;
+  font-size: 14px;
+}
+
+.todo-error {
+  color: #b91c1c;
+  background: #fef2f2;
+}
+
+.retry-button {
+  width: fit-content;
+  border: 1px solid #ef4444;
+  background: #dc2626;
+  color: #fff;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.retry-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .todo-list {
@@ -145,6 +198,11 @@
   cursor: pointer;
 }
 
+.todo-check:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .todo-row.is-complete .todo-check {
   border-color: #059669;
   background: #059669;
@@ -171,6 +229,11 @@
   color: #dc2626;
   font: inherit;
   cursor: pointer;
+}
+
+.todo-delete:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .todo-delete-confirm {
@@ -212,6 +275,11 @@
   cursor: pointer;
 }
 
+.todo-action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .todo-action:hover {
   border-color: #d8dee8;
   background: #f1f5f9;
@@ -231,6 +299,11 @@
   color: inherit;
 }
 
+.todo-edit-input:disabled {
+  background: #f8fafc;
+  color: #94a3b8;
+}
+
 .todo-edit-save,
 .todo-edit-cancel {
   height: 34px;
@@ -242,6 +315,12 @@
   font: inherit;
   font-size: 13px;
   cursor: pointer;
+}
+
+.todo-edit-save:disabled,
+.todo-edit-cancel:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .todo-edit-save {
@@ -296,6 +375,10 @@
 
   .todo-row {
     padding: 0 16px;
+  }
+
+  .todo-status {
+    padding: 16px;
   }
 
   .todo-row.is-editing {

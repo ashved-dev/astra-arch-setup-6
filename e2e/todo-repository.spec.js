@@ -5,6 +5,7 @@ import {
   DATABASE_URL_MISSING_ERROR,
   TODO_RETURNING_COLUMNS,
 } from '../src/db/todoRepository.js';
+import { createMockTodoApi } from './utils/todoApiMock.js';
 
 function createStatefulTodoPool(seedRows = []) {
   const rows = [...seedRows];
@@ -155,17 +156,17 @@ test('Planned use case: missing config reports explicit DATABASE_URL error', asy
   }
 });
 
-test('Planned use case: existing browser todo flow remains intact', async ({ page }) => {
+test('Planned use case: existing browser todo flow remains API-backed', async ({ page }) => {
+  const todoApi = await createMockTodoApi(page);
+  await todoApi.clear();
   await page.goto('/');
-  await page.evaluate(() => localStorage.clear());
-  await page.reload();
 
-  await page.getByRole('textbox', { name: 'Task title' }).fill('UI stays local-only');
+  await page.getByRole('textbox', { name: 'Task title' }).fill('UI persists via API');
   await page.getByRole('button', { name: 'Add task' }).click();
-  await expect(page.getByText('UI stays local-only')).toBeVisible();
+  await expect(page.getByText('UI persists via API')).toBeVisible();
 
   await page.reload();
-  await expect(page.getByText('UI stays local-only')).toBeVisible();
+  await expect(page.getByText('UI persists via API')).toBeVisible();
   await expect(page.getByText('1 total, 1 active, 0 completed')).toBeVisible();
 });
 

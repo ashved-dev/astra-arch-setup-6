@@ -236,17 +236,4 @@ test.describe('Todo API endpoints', () => {
     expect(response.status()).toBe(404);
     expect(body.error).toBe('NOT_FOUND');
   });
-
-  test('Planned use case 7: existing browser todo flow remains unchanged', async ({ page }) => {
-    await page.goto('/');
-    await page.evaluate(() => localStorage.clear());
-    await page.reload();
-
-    await page.getByRole('textbox', { name: 'Task title' }).fill('UI remains local');
-    await page.getByRole('button', { name: 'Add task' }).click();
-    await expect(page.getByText('UI remains local')).toBeVisible();
-
-    await page.reload();
-    await expect(page.getByText('UI remains local')).toBeVisible();
-  });
 });

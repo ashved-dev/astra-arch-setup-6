@@ -1,6 +1,10 @@
 import { expect, test } from '@playwright/test';
 
+import { createMockTodoApi } from './utils/todoApiMock.js';
+
 const rowSelector = 'li.todo-row';
+
+let todoApi;
 
 function expectWithinViewport(page, rect) {
   const viewport = page.viewportSize();
@@ -16,9 +20,9 @@ function expectWithinViewport(page, rect) {
 }
 
 async function seedTodoList(page) {
+  todoApi = await createMockTodoApi(page);
+  await todoApi.clear();
   await page.goto('/');
-  await page.evaluate(() => localStorage.clear());
-  await page.reload();
 
   await page.getByRole('textbox', { name: 'Task title' }).fill('Draft the first task');
   await page.getByRole('button', { name: 'Add task' }).click();
@@ -143,9 +147,9 @@ test('Mobile visual path: stacked add form and in-viewport controls', async ({ p
 
 test('Empty-state path: panel displays empty message when no todos exist', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
+  todoApi = await createMockTodoApi(page);
+  await todoApi.clear();
   await page.goto('/');
-  await page.evaluate(() => localStorage.clear());
-  await page.reload();
 
   await expect(page.getByText('No tasks yet. Add a task to get started.')).toBeVisible();
   await expect(page.locator(rowSelector)).toHaveCount(0);
@@ -153,9 +157,9 @@ test('Empty-state path: panel displays empty message when no todos exist', async
 
 test('Accessibility path: controls expose usable role or labels', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
+  todoApi = await createMockTodoApi(page);
+  await todoApi.clear();
   await page.goto('/');
-  await page.evaluate(() => localStorage.clear());
-  await page.reload();
 
   await page.getByRole('textbox', { name: 'Task title' }).fill('A11y check');
   await page.getByRole('button', { name: 'Add task' }).click();
