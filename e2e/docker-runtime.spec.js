@@ -45,6 +45,69 @@ function waitForMs(ms) {
   });
 }
 
+async function waitForPostgresReadiness() {
+  const startedAt = Date.now();
+  const timeoutMs = 60_000;
+  let lastError = 'Postgres readiness not observed.';
+
+  while (Date.now() - startedAt < timeoutMs) {
+    const ready = runCommand([
+      'exec',
+      POSTGRES_CONTAINER,
+      'pg_isready',
+      '-U',
+      'postgres',
+      '-d',
+      DB_NAME,
+    ], {
+      allowFailure: true,
+    });
+
+    if (ready.status === 0) {
+      return;
+    }
+
+    lastError = `${ready.stdout || ''}${ready.stderr || ''}`.trim() || `exit code ${ready.status}`;
+    await waitForMs(500);
+  }
+
+  throw new Error(`PostgreSQL container did not become ready at ${POSTGRES_CONTAINER}: ${lastError}`);
+}
+
+async function runMigrationWithRetry(databaseUrl) {
+  const attempts = 12;
+  const delayMs = 750;
+  let lastResult;
+
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    lastResult = runCommand([
+      'run',
+      '--rm',
+      '--network',
+      NETWORK,
+      '-e',
+      `DATABASE_URL=${databaseUrl}`,
+      IMAGE_TAG,
+      'node',
+      'scripts/db-migrate.mjs',
+    ], {
+      allowFailure: true,
+    });
+
+    if (lastResult.status === 0) {
+      return;
+    }
+
+    if (attempt < attempts) {
+      await waitForMs(delayMs * attempt);
+      continue;
+    }
+  }
+
+  const migrationError = `${lastResult?.stdout || ''}${lastResult?.stderr || ''}`.trim() || 'no command output';
+  throw new Error(`Postgres migration did not complete in ${attempts} attempts: ${migrationError}`);
+}
+
 async function waitForEndpoint(path) {
   const endpoint = `${APP_URL}${path}`;
   const startedAt = Date.now();
@@ -132,34 +195,8 @@ test.describe('Docker runtime smoke', () => {
       'postgres:16-alpine',
     ]);
 
-    const waitStart = Date.now() + 30_000;
-    while (Date.now() < waitStart) {
-      const ready = runCommand([
-        'exec',
-        POSTGRES_CONTAINER,
-        'pg_isready',
-        '-U',
-        'postgres',
-      ], {
-        allowFailure: true,
-      });
-      if (ready.status === 0) {
-        break;
-      }
-      await waitForMs(500);
-    }
-
-    runCommand([
-      'run',
-      '--rm',
-      '--network',
-      NETWORK,
-      '-e',
-      `DATABASE_URL=${DATABASE_URL}`,
-      IMAGE_TAG,
-      'node',
-      'scripts/db-migrate.mjs',
-    ]);
+    await waitForPostgresReadiness();
+    await runMigrationWithRetry(DATABASE_URL);
 
     runCommand([
       'run',

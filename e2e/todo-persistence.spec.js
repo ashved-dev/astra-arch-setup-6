@@ -1,28 +1,42 @@
 import { expect, test } from '@playwright/test';
 
 async function resetDatabase(request) {
-  const listResponse = await request.get('/api/todos');
-  if (!listResponse.ok()) {
-    const message = await listResponse.text();
-    throw new Error(`Postgres API unavailable: /api/todos responded ${listResponse.status()} ${listResponse.statusText()} ${message}`);
-  }
+  const timeoutMs = 10_000;
+  const startedAt = Date.now();
+  let lastError;
 
-  const todos = await listResponse.json().catch(() => {
-    throw new Error('Postgres API unavailable: /api/todos did not return JSON array');
-  });
-  if (!Array.isArray(todos)) {
-    throw new Error('Postgres API unavailable: /api/todos did not return an array');
-  }
+  while (Date.now() - startedAt < timeoutMs) {
+    const listResponse = await request.get('/api/todos');
+    if (!listResponse.ok()) {
+      const message = await listResponse.text();
+      lastError = `status ${listResponse.status()} ${listResponse.statusText()} ${message}`;
+    } else {
+      try {
+        const todos = await listResponse.json();
+        if (Array.isArray(todos)) {
+          for (const todo of todos) {
+            if (typeof todo?.id !== 'number' || !Number.isFinite(todo.id)) {
+              continue;
+            }
 
-  for (const todo of todos) {
-    if (typeof todo?.id !== 'number' || !Number.isFinite(todo.id)) {
-      continue;
+            await request.delete(`/api/todos/${todo.id}`);
+          }
+
+          return todos;
+        }
+
+        lastError = 'response was not a JSON array';
+      } catch (_error) {
+        lastError = 'response was not parseable JSON';
+      }
     }
 
-    await request.delete(`/api/todos/${todo.id}`);
+    await new Promise((resolve) => {
+      setTimeout(resolve, 500);
+    });
   }
 
-  return todos;
+  throw new Error(`Postgres API unavailable: /api/todos did not return a JSON array in time (${timeoutMs}ms); last error: ${lastError}`);
 }
 
 async function confirmDelete(page, title) {
