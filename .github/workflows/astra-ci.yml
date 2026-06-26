@@ -38,6 +38,12 @@ jobs:
         if: ${{ hashFiles('Dockerfile') != '' }}
         run: docker build -t astra-arch-setup-6-ci .
 
+      - name: Validate QA compose contract
+        if: ${{ hashFiles('docker-compose.qa.yml') != '' }}
+        env:
+          POSTGRES_PASSWORD: ci_qa_db_password_non_default
+        run: docker compose -f docker-compose.qa.yml config
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
