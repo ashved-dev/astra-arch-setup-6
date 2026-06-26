@@ -297,7 +297,7 @@ test.describe('Docker runtime smoke', () => {
   test('Documentation path: local setup includes docker instructions and no secrets', async () => {
     const docs = fs.readFileSync('LOCAL_SETUP.md', 'utf8');
     expect(docs).toContain('docker build -t astra-arch-setup-6-todo .');
-    expect(docs).toContain('docker compose up --build');
+    expect(docs).toMatch(/docker compose(?: -f docker-compose.qa\.yml)? up --build/);
     expect(docs).not.toContain('postgres://postgres:postgres:');
     expect(docs).toContain('DATABASE_URL');
   });

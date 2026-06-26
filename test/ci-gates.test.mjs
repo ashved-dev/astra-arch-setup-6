@@ -73,3 +73,57 @@ test('workflow contains a Dockerfile validation step in CI config', () => {
   assert.match(workflowText, /- name:\s*Validate Dockerfile image/);
   assert.match(workflowText, /run:\s+docker build -t astra-arch-setup-6-ci \./);
 });
+
+test('environment template does not use weak QA/PROD default credentials', () => {
+  const envPath = path.join(process.cwd(), '.env.example');
+  const envText = fs.readFileSync(envPath, 'utf8');
+
+  assert.match(envText, /^DATABASE_URL=postgres:\/\/<[^>]+>:[^\s@]+@localhost:5432\/astra_arch_setup_6$/m);
+  assert.ok(!/^\s*#\s+QA:\s+postgres:\/\/postgres:postgres@/m.test(envText));
+  assert.ok(!/^\s*#\s+PROD:\s+postgres:\/\/postgres:postgres@/m.test(envText));
+});
+
+test('QA compose references do not contain weak postgres defaults', () => {
+  const composePath = path.join(process.cwd(), 'docker-compose.qa.yml');
+  const composeText = fs.readFileSync(composePath, 'utf8');
+
+  assert.ok(!/postgres:\/\/postgres:postgres@/i.test(composeText));
+});
+
+test('QA compose contract exists and includes required app + Postgres services', () => {
+  const composePath = path.join(process.cwd(), 'docker-compose.qa.yml');
+  const composeText = fs.readFileSync(composePath, 'utf8');
+
+  assert.ok(composeText.includes('services:'));
+  assert.ok(/^\s+postgres:\s*$/m.test(composeText));
+  assert.ok(/^\s+todo-app:\s*$/m.test(composeText));
+  assert.match(composeText, /target:\s*runtime/);
+});
+
+test('QA compose contract requires a generated Postgres password and uses it in DATABASE_URL', () => {
+  const composePath = path.join(process.cwd(), 'docker-compose.qa.yml');
+  const composeText = fs.readFileSync(composePath, 'utf8');
+
+  assert.match(composeText, /\$\{POSTGRES_PASSWORD:\?POSTGRES_PASSWORD is required\}/);
+  assert.match(
+    composeText,
+    /DATABASE_URL:\s*postgres:\/\/postgres:\$\{POSTGRES_PASSWORD:\?POSTGRES_PASSWORD is required\}@postgres:5432\/astra_arch_setup_6/,
+  );
+});
+
+test('QA compose contract persists Postgres data to a named volume', () => {
+  const composePath = path.join(process.cwd(), 'docker-compose.qa.yml');
+  const composeText = fs.readFileSync(composePath, 'utf8');
+
+  assert.match(composeText, /- qa_postgres_data:\/var\/lib\/postgresql\/data/);
+  assert.match(composeText, /^\s*qa_postgres_data:\s*$/m);
+});
+
+test('QA compose contract validates in workflow without real credentials', () => {
+  const workflowPath = path.join(process.cwd(), '.github', 'workflows', 'astra-ci.yml');
+  const workflowText = fs.readFileSync(workflowPath, 'utf8');
+
+  assert.match(workflowText, /- name:\s*Validate QA compose contract/);
+  assert.match(workflowText, /docker compose -f docker-compose\.qa\.yml config/);
+  assert.match(workflowText, /POSTGRES_PASSWORD:\s+ci_qa_db_password_non_default/);
+});

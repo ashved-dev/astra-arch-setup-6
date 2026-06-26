@@ -30,10 +30,20 @@ For CI, use the same `DATABASE_URL` format as `postgres://postgres:${POSTGRES_PA
    - `curl http://127.0.0.1:4173/api/health`
    - `curl http://127.0.0.1:4173/api/todos`
 
-## Optional docker-compose path
+## QA/Coolify compose deployment
+
+Use `docker-compose.qa.yml` for the Coolify QA deployment contract.
+
+Required:
+- Provide a generated password in `POSTGRES_PASSWORD` from provider/runtime secrets.
+- Do not commit real QA secrets into Git.
+
+Validate the contract with a throwaway non-default value:
+
+- `POSTGRES_PASSWORD=ci_qa_db_password_non_default docker compose -f docker-compose.qa.yml config`
 
 Start both services together with:
 
-- `docker compose up --build`
+- `docker compose -f docker-compose.qa.yml up --build`
 
 Compose exposes the app on `http://127.0.0.1:4173`.
