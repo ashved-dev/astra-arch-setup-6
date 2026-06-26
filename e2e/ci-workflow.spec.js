@@ -19,6 +19,38 @@ test('workflow file is configured for pull_request and astra branches', async ({
   await expect(page.getByText('astra/**')).toBeVisible();
 });
 
+test('workflow includes Dockerfile image validation step', async () => {
+  expect(workflowText).toMatch(/- name:\s*Validate Dockerfile image/);
+  expect(workflowText).toMatch(/run:\s+docker build -t astra-arch-setup-6-ci \./);
+});
+
+test('workflow quality gates still include install, lint, build, test, and e2e', async ({ page }) => {
+  await page.setContent(`<pre>${workflowText}</pre>`);
+  await expect(page.getByText('Install dependencies')).toBeVisible();
+  await expect(page.getByText('Install Playwright browsers')).toBeVisible();
+  await expect(page.getByText('Apply todo schema')).toBeVisible();
+  await expect(page.getByText('Run CI quality gates')).toBeVisible();
+  expect(workflowText).toContain('node scripts/ci-gates.mjs');
+
+  const gateScriptText = fs.readFileSync(scriptPath, 'utf8');
+  expect(gateScriptText).toContain("'lint'");
+  expect(gateScriptText).toContain("'build'");
+  expect(gateScriptText).toContain("'test'");
+  expect(gateScriptText).toContain("'e2e'");
+});
+
+test('docker validation command does not include embedded credentials', () => {
+  const dockerCommandMatch = workflowText.match(
+    /- name:\s*Validate Dockerfile image[\s\S]*?run:\s+docker build -t .*?$/m
+  );
+  const dockerCommandBlock = dockerCommandMatch?.[0] ?? '';
+
+  expect(dockerCommandMatch).not.toBeNull();
+  expect(dockerCommandBlock).not.toMatch(/postgres:[^\s]+@/i);
+  expect(dockerCommandBlock).not.toMatch(/postgres:\/\/[^\s]+:[^\s]+@/i);
+  expect(dockerCommandBlock).not.toMatch(/password|secret|apikey|api[_-]?key/i);
+});
+
 test('bootstrap use case: missing package.json skips quality gates', async () => {
   const tempDir = mkdtempSync(path.join(os.tmpdir(), 'ci-playwright-no-package-'));
   try {
