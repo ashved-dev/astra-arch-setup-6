@@ -74,6 +74,22 @@ test('workflow contains a Dockerfile validation step in CI config', () => {
   assert.match(workflowText, /run:\s+docker build -t astra-arch-setup-6-ci \./);
 });
 
+test('environment template does not use weak QA/PROD default credentials', () => {
+  const envPath = path.join(process.cwd(), '.env.example');
+  const envText = fs.readFileSync(envPath, 'utf8');
+
+  assert.match(envText, /^DATABASE_URL=postgres:\/\/<[^>]+>:[^\s@]+@localhost:5432\/astra_arch_setup_6$/m);
+  assert.ok(!/^\s*#\s+QA:\s+postgres:\/\/postgres:postgres@/m.test(envText));
+  assert.ok(!/^\s*#\s+PROD:\s+postgres:\/\/postgres:postgres@/m.test(envText));
+});
+
+test('QA compose references do not contain weak postgres defaults', () => {
+  const composePath = path.join(process.cwd(), 'docker-compose.qa.yml');
+  const composeText = fs.readFileSync(composePath, 'utf8');
+
+  assert.ok(!/postgres:\/\/postgres:postgres@/i.test(composeText));
+});
+
 test('QA compose contract exists and includes required app + Postgres services', () => {
   const composePath = path.join(process.cwd(), 'docker-compose.qa.yml');
   const composeText = fs.readFileSync(composePath, 'utf8');

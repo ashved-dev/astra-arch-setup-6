@@ -12,6 +12,8 @@ const workflowText = fs.readFileSync(workflowPath, 'utf8');
 const scriptPath = path.resolve(__dirname, '..', 'scripts', 'ci-gates.mjs');
 const composePath = path.resolve(__dirname, '..', 'docker-compose.qa.yml');
 const composeText = fs.readFileSync(composePath, 'utf8');
+const envPath = path.resolve(__dirname, '..', '.env.example');
+const envText = fs.readFileSync(envPath, 'utf8');
 const canRunCompose = (() => {
   try {
     execSync('docker compose version', { stdio: 'ignore' });
@@ -59,6 +61,14 @@ test('docker validation command does not include embedded credentials', () => {
   expect(dockerCommandBlock).not.toMatch(/postgres:[^\s]+@/i);
   expect(dockerCommandBlock).not.toMatch(/postgres:\/\/[^\s]+:[^\s]+@/i);
   expect(dockerCommandBlock).not.toMatch(/password|secret|apikey|api[_-]?key/i);
+});
+
+test('environment template does not include weak QA/PROD credentials', async ({ page }) => {
+  await page.setContent(`<pre>${envText}</pre>`);
+
+  expect(envText).toMatch(/^DATABASE_URL=postgres:\/\/<[^:]+>:[^@]+@localhost:5432\/astra_arch_setup_6$/m);
+  expect(envText).not.toMatch(/^\s*#\s*QA:\s*postgres:\/\/postgres:postgres@/m);
+  expect(envText).not.toMatch(/^\s*#\s*PROD:\s*postgres:\/\/postgres:postgres@/m);
 });
 
 test('QA compose contract defines app and Postgres services', () => {
