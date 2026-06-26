@@ -65,3 +65,11 @@ test('prefers npm install when lockfile is missing and keeps only supported scri
     rmSync(tempDir, { recursive: true, force: true });
   }
 });
+
+test('workflow contains a Dockerfile validation step in CI config', () => {
+  const workflowPath = path.join(process.cwd(), '.github', 'workflows', 'astra-ci.yml');
+  const workflowText = fs.readFileSync(workflowPath, 'utf8');
+
+  assert.match(workflowText, /- name:\s*Validate Dockerfile image/);
+  assert.match(workflowText, /run:\s+docker build -t astra-arch-setup-6-ci \./);
+});
